@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "id": "jph777.whats-the-damage",
+  "name": "What's the damage",
+  "version": "0.1.0",
+  "author": "jph777",
+  "license": "MIT",
+  "description": "The Omarchy agents widget, but every token your agent spends pops out of the icon as a Destiny-style yellow damage number.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Agents (damage numbers)",
+    "description": "Agent usage, limits and pace, with damage numbers whenever tokens are spent.",
+    "category": "AI",
+    "aliases": [
+      "agents",
+      "model-usage",
+      "damage"
+    ],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "providers": {
+        "claude": {
+          "enabled": true
+        },
+        "codex": {
+          "enabled": true
+        },
+        "fireworks": {
+          "enabled": true
+        }
+      },
+      "refreshIntervalSec": 900,
+      "syncMode": "Off",
+      "syncDir": "",
+      "syncFileName": "",
+      "syncDeviceId": "",
+      "numbersEnabled": true,
+      "flinchEnabled": true,
+      "sizePercent": 50,
+      "numberColor": "#ffd02e",
+      "mergeMs": 150
+    },
+    "schema": [
+      {
+        "key": "numbersEnabled",
+        "type": "boolean",
+        "label": "Damage numbers",
+        "defaultValue": true,
+        "description": "Show a number whenever Claude spends tokens."
+      },
+      {
+        "key": "sizePercent",
+        "type": "integer",
+        "label": "Number size (%)",
+        "min": 10,
+        "max": 400,
+        "step": 10,
+        "defaultValue": 50
+      },
+      {
+        "key": "numberColor",
+        "type": "string",
+        "label": "Number color",
+        "defaultValue": "#ffd02e",
+        "description": "Hex color, e.g. #ffd02e (Destiny yellow)."
+      },
+      {
+        "key": "mergeMs",
+        "type": "integer",
+        "label": "Merge window (ms)",
+        "min": 0,
+        "max": 2000,
+        "step": 50,
+        "defaultValue": 150,
+        "description": "Hits closer together than this become one number."
+      },
+      {
+        "key": "flinchEnabled",
+        "type": "boolean",
+        "label": "Icon flinch",
+        "defaultValue": true,
+        "description": "Wobble and flash the icon when a number appears."
+      },
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "min": 30,
+        "max": 3600,
+        "step": 30,
+        "defaultValue": 900
+      },
+      {
+        "key": "syncMode",
+        "type": "enum",
+        "label": "Synced aggregation",
+        "options": [
+          "Off",
+          "On"
+        ],
+        "defaultValue": "Off",
+        "description": "When On, write this machine's local usage snapshot and merge snapshots from other machines."
+      },
+      {
+        "key": "syncDir",
+        "type": "path",
+        "label": "Sync folder",
+        "defaultValue": "",
+        "description": "A folder synced by Syncthing, Dropbox, rsync, etc."
+      },
+      {
+        "key": "syncFileName",
+        "type": "string",
+        "label": "Snapshot file name",
+        "defaultValue": "",
+        "description": "Optional. Defaults to <hostname>.json."
+      },
+      {
+        "key": "syncDeviceId",
+        "type": "string",
+        "label": "Device id",
+        "defaultValue": "",
+        "description": "Optional stable device name used inside synced aggregate snapshots."
+      }
+    ]
+  }
+}

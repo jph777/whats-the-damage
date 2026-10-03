@@ -1,0 +1,92 @@
+#!/usr/bin/python3 -I
+"""Print the tokens each Claude Code message spends, one integer per line, as it happens.
+
+Watches ~/.claude/projects/**/*.jsonl for appended lines and prints the quota
+tokens (input + output + cache creation) of every new assistant message. A
+streamed message appears several times with growing usage, so only the growth
+per message id is printed. Starts at the end of each file: history is not replayed.
+"""
+import glob
+import json
+import os
+import sys
+import time
+
+ROOT = os.environ.get("TOKEN_TAP_ROOT") or os.path.expanduser("~/.claude/projects")
+POLL = float(os.environ.get("TOKEN_TAP_POLL", "0.4"))
+KEYS = ("input_tokens", "output_tokens", "cache_creation_input_tokens")
+
+
+def quota_tokens(usage):
+    if not isinstance(usage, dict):
+        return 0
+    total = 0
+    for key in KEYS:
+        v = usage.get(key)
+        if isinstance(v, (int, float)) and v > 0:
+            total += int(v)
+    return total
+
+
+def line_delta(line, seen):
+    """Tokens newly spent by one jsonl line, updating the per-message-id high-water marks."""
+    try:
+        obj = json.loads(line)
+    except ValueError:
+        return 0
+    msg = obj.get("message") if isinstance(obj, dict) else None
+    if not isinstance(msg, dict) or msg.get("role") != "assistant":
+        return 0
+    total = quota_tokens(msg.get("usage"))
+    key = msg.get("id") or obj.get("uuid")
+    if not key:
+        return total
+    grown = total - seen.get(key, 0)
+    if grown <= 0:
+        return 0
+    seen[key] = total
+    if len(seen) > 4096:
+        for old in list(seen)[:2048]:
+            del seen[old]
+    return grown
+
+
+def main():
+    offsets = {}
+    seen = {}
+    first = True
+    while True:
+        for path in glob.glob(os.path.join(ROOT, "**", "*.jsonl"), recursive=True):
+            try:
+                size = os.path.getsize(path)
+            except OSError:
+                continue
+            if path not in offsets:
+                offsets[path] = size if first else 0
+            if size < offsets[path]:
+                offsets[path] = 0
+            if size == offsets[path]:
+                continue
+            try:
+                with open(path, "rb") as f:
+                    f.seek(offsets[path])
+                    data = f.read()
+            except OSError:
+                continue
+            end = data.rfind(b"\n")
+            if end < 0:
+                continue  # partial line; wait for the rest
+            offsets[path] += end + 1
+            for raw in data[:end].split(b"\n"):
+                n = line_delta(raw.decode("utf-8", "replace"), seen)
+                if n > 0:
+                    print(n, flush=True)
+        first = False
+        time.sleep(POLL)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (KeyboardInterrupt, BrokenPipeError):
+        sys.exit(0)

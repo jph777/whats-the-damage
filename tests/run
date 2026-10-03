@@ -1,0 +1,6 @@
+#!/bin/sh
+# Run every test: the token-tap Python suite, then the Model.js node suite.
+set -eu
+cd "$(dirname "$0")/.."
+/usr/bin/python3 -I -B -m unittest discover -s tests -p 'test_*.py' "$@"
+node --test tests/model.test.cjs
