@@ -1,0 +1,33 @@
+#!/bin/sh
+# Safety rails: never push to the original repo, never force-push or delete,
+# keep upstream a pure mirror, and gate stable behind scripts/promote.
+remote_name=$1
+remote_url=$2
+zero=0000000000000000000000000000000000000000
+die() { echo "BLOCKED: $*" >&2; exit 1; }
+
+up_url=$(git remote get-url upstream 2>/dev/null || true)
+if [ "$remote_name" = upstream ] || { [ -n "$up_url" ] && [ "$remote_url" = "$up_url" ]; }; then
+  die "never push to the original repo (the 'upstream' remote). Only 'origin' is ours."
+fi
+up_branch=$(git config workflow.upstreamBranch || echo main)
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  branch=${remote_ref#refs/heads/}
+  if [ "$local_sha" = "$zero" ]; then
+    case "$branch" in stable|dev|upstream) die "never delete '$branch'." ;; esac
+    continue
+  fi
+  if [ "$remote_sha" != "$zero" ]; then
+    git cat-file -e "$remote_sha^{commit}" 2>/dev/null || die "remote '$branch' has commits you don't have; fetch first."
+    git merge-base --is-ancestor "$remote_sha" "$local_sha" || die "non-fast-forward push to '$branch' (force-push is not allowed)."
+  fi
+  case "$branch" in
+    upstream)
+      git merge-base --is-ancestor "$local_sha" "refs/remotes/upstream/$up_branch" \
+        || die "'upstream' must mirror upstream/$up_branch exactly; it has commits that are not the original's." ;;
+    stable)
+      [ "${ALLOW_STABLE_PUSH:-}" = 1 ] || die "stable is pushed only by scripts/promote (needs the user's confirmation)."
+      git merge-base --is-ancestor "$local_sha" refs/heads/dev || die "stable must be an ancestor of dev." ;;
+  esac
+done
